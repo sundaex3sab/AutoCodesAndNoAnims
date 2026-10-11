@@ -1,0 +1,504 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+local Net = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net"))
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AdminCodeAutoRedeemer"
+screenGui.ResetOnSpawn = false
+screenGui.DisplayOrder = 9999
+screenGui.IgnoreGuiInset = true
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 320, 0, 158)
+frame.Position = UDim2.new(0.5, 0, 0, 10)
+frame.AnchorPoint = Vector2.new(0.5, 0)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+frame.BackgroundTransparency = 0.15
+frame.BorderSizePixel = 0
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(60, 180, 255)
+stroke.Thickness = 2
+stroke.Transparency = 0.2
+stroke.Parent = frame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 44)
+statusLabel.Position = UDim2.new(0, 10, 0, 4)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Waiting for code..."
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.Font = Enum.Font.MontserratBold
+statusLabel.TextScaled = true
+statusLabel.TextSize = 16
+statusLabel.TextStrokeTransparency = 0
+statusLabel.TextXAlignment = Enum.TextXAlignment.Center
+statusLabel.TextYAlignment = Enum.TextYAlignment.Center
+statusLabel.RichText = true
+statusLabel.Parent = frame
+
+local wordCount = 3
+local toggleButtons = {}
+
+local function refreshToggleVisuals()
+	for count, button in pairs(toggleButtons) do
+		if count == wordCount then
+			button.BackgroundColor3 = Color3.fromRGB(60, 180, 255)
+			button.TextColor3 = Color3.fromRGB(20, 20, 25)
+		else
+			button.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+			button.TextColor3 = Color3.fromRGB(160, 160, 170)
+		end
+	end
+end
+
+local optionsRow = Instance.new("Frame")
+optionsRow.Name = "OptionsRow"
+optionsRow.Size = UDim2.new(1, -20, 0, 26)
+optionsRow.Position = UDim2.new(0, 10, 0, 88)
+optionsRow.BackgroundTransparency = 1
+optionsRow.Parent = frame
+
+local optionsLayout = Instance.new("UIListLayout")
+optionsLayout.FillDirection = Enum.FillDirection.Horizontal
+optionsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+optionsLayout.Padding = UDim.new(0, 8)
+optionsLayout.Parent = optionsRow
+
+local transparentButton = Instance.new("TextButton")
+transparentButton.Name = "TransparentToggle"
+transparentButton.Size = UDim2.new(0, 120, 1, 0)
+transparentButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+transparentButton.BorderSizePixel = 0
+transparentButton.Text = "Transparent: OFF"
+transparentButton.Font = Enum.Font.MontserratBold
+transparentButton.TextSize = 14
+transparentButton.TextColor3 = Color3.fromRGB(160, 160, 170)
+transparentButton.AutoButtonColor = true
+transparentButton.Parent = optionsRow
+
+local transparentCorner = Instance.new("UICorner")
+transparentCorner.CornerRadius = UDim.new(0, 6)
+transparentCorner.Parent = transparentButton
+
+local speedBox = Instance.new("TextBox")
+speedBox.Name = "SpeedBox"
+speedBox.Size = UDim2.new(0, 70, 1, 0)
+speedBox.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+speedBox.BorderSizePixel = 0
+speedBox.Text = ""
+speedBox.PlaceholderText = "Speed"
+speedBox.Font = Enum.Font.MontserratBold
+speedBox.TextSize = 14
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
+speedBox.ClearTextOnFocus = false
+speedBox.Parent = optionsRow
+
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(0, 6)
+speedCorner.Parent = speedBox
+
+local speedButton = Instance.new("TextButton")
+speedButton.Name = "SpeedSet"
+speedButton.Size = UDim2.new(0, 50, 1, 0)
+speedButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+speedButton.BorderSizePixel = 0
+speedButton.Text = "Set"
+speedButton.Font = Enum.Font.MontserratBold
+speedButton.TextSize = 14
+speedButton.TextColor3 = Color3.fromRGB(160, 160, 170)
+speedButton.AutoButtonColor = true
+speedButton.Parent = optionsRow
+
+local speedCorner2 = Instance.new("UICorner")
+speedCorner2.CornerRadius = UDim.new(0, 6)
+speedCorner2.Parent = speedButton
+
+local transparentActive = false
+local originalTransparency = {}
+local descendantConnection = nil
+
+local function applyTransparency(part)
+	if part:IsA("BasePart") and originalTransparency[part] == nil and part.Transparency < 0.4 then
+		originalTransparency[part] = part.Transparency
+		part.Transparency = 0.4
+	end
+end
+
+local function setTransparent(active)
+	transparentActive = active
+	if active then
+		for _, descendant in workspace:GetDescendants() do
+			applyTransparency(descendant)
+		end
+		descendantConnection = workspace.DescendantAdded:Connect(function(descendant)
+			if transparentActive then
+				applyTransparency(descendant)
+			end
+		end)
+		transparentButton.Text = "Transparent: ON"
+		transparentButton.BackgroundColor3 = Color3.fromRGB(60, 180, 255)
+		transparentButton.TextColor3 = Color3.fromRGB(20, 20, 25)
+	else
+		if descendantConnection then
+			descendantConnection:Disconnect()
+			descendantConnection = nil
+		end
+		for part, transparency in pairs(originalTransparency) do
+			if part.Parent then
+				part.Transparency = transparency
+			end
+		end
+		table.clear(originalTransparency)
+		transparentButton.Text = "Transparent: OFF"
+		transparentButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+		transparentButton.TextColor3 = Color3.fromRGB(160, 160, 170)
+	end
+end
+
+transparentButton.MouseButton1Click:Connect(function()
+	setTransparent(not transparentActive)
+end)
+
+local desiredSpeed = nil
+
+local function applySpeed()
+	local character = player.Character
+	if not character then
+		return
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid and desiredSpeed then
+		humanoid.WalkSpeed = desiredSpeed
+	end
+end
+
+local function submitSpeed()
+	local value = tonumber(speedBox.Text)
+	if value and value >= 0 then
+		desiredSpeed = value
+		applySpeed()
+		speedButton.BackgroundColor3 = Color3.fromRGB(60, 180, 255)
+		speedButton.TextColor3 = Color3.fromRGB(20, 20, 25)
+	else
+		speedBox.Text = ""
+		speedButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+		speedButton.TextColor3 = Color3.fromRGB(20, 20, 25)
+		task.delay(1, function()
+			speedButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+			speedButton.TextColor3 = Color3.fromRGB(160, 160, 170)
+		end)
+	end
+end
+
+speedButton.MouseButton1Click:Connect(submitSpeed)
+speedBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed then
+		submitSpeed()
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	task.defer(applySpeed)
+end)
+
+local animRow = Instance.new("Frame")
+animRow.Name = "AnimRow"
+animRow.Size = UDim2.new(1, -20, 0, 26)
+animRow.Position = UDim2.new(0, 10, 1, -34)
+animRow.BackgroundTransparency = 1
+animRow.Parent = frame
+
+local animButton = Instance.new("TextButton")
+animButton.Name = "AnimToggle"
+animButton.Size = UDim2.new(0, 160, 1, 0)
+animButton.Position = UDim2.new(0.5, 0, 0, 0)
+animButton.AnchorPoint = Vector2.new(0.5, 0)
+animButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+animButton.BorderSizePixel = 0
+animButton.Text = "Animations: ON"
+animButton.Font = Enum.Font.MontserratBold
+animButton.TextSize = 14
+animButton.TextColor3 = Color3.fromRGB(160, 160, 170)
+animButton.AutoButtonColor = true
+animButton.Parent = animRow
+
+local animCorner = Instance.new("UICorner")
+animCorner.CornerRadius = UDim.new(0, 6)
+animCorner.Parent = animButton
+
+local animationsRemoved = false
+
+local function stopAllTracksIn(container)
+	for _, descendant in container:GetDescendants() do
+		if descendant:IsA("Animator") then
+			for _, track in descendant:GetPlayingAnimationTracks() do
+					track:Stop(0)
+			end
+		end
+	end
+end
+
+local function removeAnimationsOnCharacter(character)
+	if not character then
+		return
+	end
+	local animate = character:FindFirstChild("Animate")
+	if animate and animate:IsA("BaseScript") then
+		animate.Disabled = animationsRemoved
+	end
+	if animationsRemoved then
+		stopAllTracksIn(character)
+	end
+end
+
+animButton.MouseButton1Click:Connect(function()
+	animationsRemoved = not animationsRemoved
+	if animationsRemoved then
+		animButton.Text = "Animations: REMOVED"
+		animButton.BackgroundColor3 = Color3.fromRGB(60, 180, 255)
+		animButton.TextColor3 = Color3.fromRGB(20, 20, 25)
+		stopAllTracksIn(workspace)
+	else
+		animButton.Text = "Animations: ON"
+		animButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+		animButton.TextColor3 = Color3.fromRGB(160, 160, 170)
+	end
+	removeAnimationsOnCharacter(player.Character)
+end)
+
+player.CharacterAdded:Connect(function(character)
+	task.defer(function()
+		removeAnimationsOnCharacter(character)
+	end)
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		if animationsRemoved then
+			stopAllTracksIn(workspace)
+		end
+	end
+end)
+
+local setWordCount
+
+local toggleRow = Instance.new("Frame")
+toggleRow.Name = "ToggleRow"
+toggleRow.Size = UDim2.new(1, -20, 0, 26)
+toggleRow.Position = UDim2.new(0, 10, 0, 52)
+toggleRow.BackgroundTransparency = 1
+toggleRow.Parent = frame
+
+local buttonLayout = Instance.new("UIListLayout")
+buttonLayout.FillDirection = Enum.FillDirection.Horizontal
+buttonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+buttonLayout.Padding = UDim.new(0, 8)
+buttonLayout.Parent = toggleRow
+
+for _, count in ipairs({ 2, 3 }) do
+	local button = Instance.new("TextButton")
+	button.Name = "Toggle" .. count
+	button.Size = UDim2.new(0, 100, 1, 0)
+	button.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+	button.BorderSizePixel = 0
+	button.Text = count .. " Words"
+	button.Font = Enum.Font.MontserratBold
+	button.TextSize = 14
+	button.AutoButtonColor = true
+	button.Parent = toggleRow
+
+	local buttonCorner = Instance.new("UICorner")
+	buttonCorner.CornerRadius = UDim.new(0, 6)
+	buttonCorner.Parent = button
+
+	button.MouseButton1Click:Connect(function()
+		setWordCount(count)
+	end)
+
+	toggleButtons[count] = button
+end
+
+refreshToggleVisuals()
+
+frame.Parent = screenGui
+screenGui.Parent = PlayerGui
+
+local function setStatus(text, color)
+	statusLabel.Text = text
+	if color then
+		stroke.Color = color
+	end
+end
+
+local displayName = player.DisplayName or ""
+local userName = player.Name or ""
+
+local function stripRichText(text)
+	return string.gsub(text, "<[^>]+>", "")
+end
+
+local function stripPrefix(text)
+	for _, name in ipairs({ displayName, userName }) do
+		if name ~= "" then
+			local lowerName = string.lower(name)
+			local lowerText = string.lower(text)
+			if string.sub(lowerText, 1, #lowerName) == lowerName then
+				text = string.sub(text, #name + 1)
+				text = string.gsub(text, "^[%s%p:%-]+", "")
+			end
+		end
+	end
+	return text
+end
+
+local state = "idle"
+local codeParts = {}
+local lastStateChange = os.clock()
+local TIMEOUT = 60
+
+local function resetState()
+	state = "idle"
+	table.clear(codeParts)
+	lastStateChange = os.clock()
+	setStatus("Waiting for code...", Color3.fromRGB(60, 180, 255))
+end
+
+setWordCount = function(count)
+	wordCount = count
+	refreshToggleVisuals()
+	if state == "collecting" then
+		table.clear(codeParts)
+		state = "idle"
+	end
+	setStatus("Mode: " .. count .. " words. Waiting for code...", Color3.fromRGB(60, 180, 255))
+end
+
+local function redeemCode(code)
+	setStatus("Redeeming: " .. code .. "...", Color3.fromRGB(255, 200, 50))
+
+	local RequestRedemption = Net:RemoteFunction("7d14a912-1040-4867-b005-98838eb9acc4")
+	print("[AdminCodeAutoRedeemer] Sending code to server: " .. code)
+	local ok, result, reason = pcall(function()
+		return RequestRedemption:InvokeServer(code)
+	end)
+	print("[AdminCodeAutoRedeemer] Server response:", ok, result, tostring(reason))
+
+	if not ok then
+		setStatus("Redemption error: " .. tostring(result), Color3.fromRGB(255, 60, 60))
+	elseif not result then
+		setStatus("Failed: " .. tostring(reason or "Unknown"), Color3.fromRGB(255, 60, 60))
+	else
+		setStatus("Code redeemed! " .. tostring(reason or ""), Color3.fromRGB(50, 255, 100))
+	end
+
+	task.wait(4)
+	if state == "redeeming" then
+		resetState()
+	end
+end
+
+local function processNotification(rawText)
+	local cleanText = stripRichText(rawText)
+	cleanText = stripPrefix(cleanText)
+	cleanText = string.gsub(cleanText, "^%s+", "")
+	cleanText = string.gsub(cleanText, "%s+$", "")
+	local lowerText = string.lower(cleanText)
+
+	print("[AdminCodeAutoRedeemer] Notification: " .. cleanText)
+
+	local isTrigger = string.find(lowerText, "code is")
+		or string.find(lowerText, "use code")
+		or string.find(lowerText, "the code")
+
+	if isTrigger then
+		table.clear(codeParts)
+		state = "collecting"
+		lastStateChange = os.clock()
+		print("[AdminCodeAutoRedeemer] Trigger detected! Entering collecting mode.")
+
+		local afterTrigger = string.match(lowerText, "code is%s*(.*)")
+			or string.match(lowerText, "use code%s*(.*)")
+			or string.match(lowerText, "the code is%s*(.*)")
+			or string.match(lowerText, "the code%s*(.*)")
+
+		if afterTrigger and afterTrigger ~= "" then
+			local originalAfter = string.match(cleanText, "[Cc][Oo][Dd][Ee]%s+[Ii][Ss]%s*(.*)")
+				or string.match(cleanText, "[Uu][Ss][Ee]%s+[Cc][Oo][Dd][Ee]%s*(.*)")
+				or string.match(cleanText, "[Tt][Hh][Ee]%s+[Cc][Oo][Dd][Ee]%s+[Ii][Ss]%s*(.*)")
+				or string.match(cleanText, "[Tt][Hh][Ee]%s+[Cc][Oo][Dd][Ee]%s*(.*)")
+
+			if originalAfter and originalAfter ~= "" then
+				originalAfter = string.gsub(originalAfter, "^[%s%p]+", "")
+				originalAfter = string.gsub(originalAfter, "%s+$", "")
+				if originalAfter ~= "" then
+					codeParts[1] = originalAfter
+					setStatus("Part 1/" .. wordCount .. ": " .. originalAfter .. " - Waiting for word 2...", Color3.fromRGB(255, 200, 50))
+					return
+				end
+			end
+		end
+
+		setStatus("Code detected! Waiting for word 1...", Color3.fromRGB(255, 200, 50))
+		return
+	end
+
+	if state ~= "collecting" then
+		return
+	end
+
+	if cleanText == "" then
+		return
+	end
+
+	local nextPart = #codeParts + 1
+	codeParts[nextPart] = cleanText
+	lastStateChange = os.clock()
+
+	if nextPart < wordCount then
+		local display = table.concat(codeParts, " ")
+		setStatus("Part " .. nextPart .. "/" .. wordCount .. ": " .. display .. " - Waiting for word " .. (nextPart + 1) .. "...", Color3.fromRGB(255, 200, 50))
+	else
+		local rawCode = table.concat(codeParts, "")
+		local code = string.gsub(rawCode, "[^%w]", "")
+		code = string.upper(code)
+
+		if code == "" then
+			setStatus("Code was empty, aborting.", Color3.fromRGB(255, 60, 60))
+			task.wait(3)
+			resetState()
+			return
+		end
+
+		state = "redeeming"
+		setStatus("All " .. wordCount .. " words received! Code: " .. code, Color3.fromRGB(50, 255, 100))
+		task.spawn(function()
+			redeemCode(code)
+		end)
+	end
+end
+
+-- Hook directly into the notification RemoteEvent (same one NotificationController uses)
+local notifyEvent = Net:RemoteEvent("NotificationService/Notify")
+notifyEvent.OnClientEvent:Connect(function(text, duration, sound, position, avatarUserId)
+	if position == "Top" then
+		processNotification(text)
+	end
+end)
+
+print("[AdminCodeAutoRedeemer] Listening for notifications via NotificationService/Notify")
+
+task.spawn(function()
+	while true do
+		task.wait(1)
+		if state ~= "idle" and state ~= "redeeming" and (os.clock() - lastStateChange) > TIMEOUT then
+			setStatus("Timed out waiting for code parts.", Color3.fromRGB(255, 60, 60))
+			task.wait(3)
+			resetState()
+		end
+	end
+end)
