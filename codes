@@ -2,7 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local Net = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net"))
-local PlayerGui = player:WaitForChild("PlayerGui")
+local CoreGui = player:WaitForChild("CoreGui")
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AdminCodeAutoRedeemer"
