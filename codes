@@ -11,7 +11,7 @@ screenGui.DisplayOrder = 9999
 screenGui.IgnoreGuiInset = true
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 320, 0, 158)
+frame.Size = UDim2.new(0, 320, 0, 120)
 frame.Position = UDim2.new(0.5, 0, 0, 10)
 frame.AnchorPoint = Vector2.new(0.5, 0)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
@@ -67,7 +67,86 @@ optionsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 optionsLayout.Padding = UDim.new(0, 8)
 optionsLayout.Parent = optionsRow
 
+local transparentButton = Instance.new("TextButton")
+transparentButton.Name = "TransparentToggle"
+transparentButton.Size = UDim2.new(0, 120, 1, 0)
+transparentButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+transparentButton.BorderSizePixel = 0
+transparentButton.Text = "Transparent: OFF"
+transparentButton.Font = Enum.Font.MontserratBold
+transparentButton.TextSize = 14
+transparentButton.TextColor3 = Color3.fromRGB(160, 160, 170)
+transparentButton.AutoButtonColor = true
+transparentButton.Parent = optionsRow
+
+local transparentCorner = Instance.new("UICorner")
+transparentCorner.CornerRadius = UDim.new(0, 6)
+transparentCorner.Parent = transparentButton
+
+local cancelButton = Instance.new("TextButton")
+cancelButton.Name = "CancelCode"
+cancelButton.Size = UDim2.new(0, 100, 1, 0)
+cancelButton.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+cancelButton.BorderSizePixel = 0
+cancelButton.Text = "Cancel Code"
+cancelButton.Font = Enum.Font.MontserratBold
+cancelButton.TextSize = 14
+cancelButton.TextColor3 = Color3.fromRGB(255, 200, 200)
+cancelButton.AutoButtonColor = true
+cancelButton.Parent = optionsRow
+
+local cancelCorner = Instance.new("UICorner")
+cancelCorner.CornerRadius = UDim.new(0, 6)
+cancelCorner.Parent = cancelButton
+
+local transparentActive = false
+local originalTransparency = {}
+local descendantConnection = nil
+
+local function applyTransparency(part)
+	if part:IsA("BasePart") and originalTransparency[part] == nil and part.Transparency < 0.4 then
+		originalTransparency[part] = part.Transparency
+		part.Transparency = 0.4
+	end
+end
+
+local function setTransparent(active)
+	transparentActive = active
+	if active then
+		for _, descendant in workspace:GetDescendants() do
+			applyTransparency(descendant)
+		end
+		descendantConnection = workspace.DescendantAdded:Connect(function(descendant)
+			if transparentActive then
+				applyTransparency(descendant)
+			end
+		end)
+		transparentButton.Text = "Transparent: ON"
+		transparentButton.BackgroundColor3 = Color3.fromRGB(60, 180, 255)
+		transparentButton.TextColor3 = Color3.fromRGB(20, 20, 25)
+	else
+		if descendantConnection then
+			descendantConnection:Disconnect()
+			descendantConnection = nil
+		end
+		for part, transparency in pairs(originalTransparency) do
+			if part.Parent then
+				part.Transparency = transparency
+			end
+		end
+		table.clear(originalTransparency)
+		transparentButton.Text = "Transparent: OFF"
+		transparentButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+		transparentButton.TextColor3 = Color3.fromRGB(160, 160, 170)
+	end
+end
+
+transparentButton.MouseButton1Click:Connect(function()
+	setTransparent(not transparentActive)
+end)
+
 local setWordCount
+local resetState
 
 local toggleRow = Instance.new("Frame")
 toggleRow.Name = "ToggleRow"
@@ -143,12 +222,31 @@ local codeParts = {}
 local lastStateChange = os.clock()
 local TIMEOUT = 60
 
-local function resetState()
+resetState = function()
 	state = "idle"
 	table.clear(codeParts)
 	lastStateChange = os.clock()
 	setStatus("Waiting for code...", Color3.fromRGB(60, 180, 255))
 end
+
+cancelButton.MouseButton1Click:Connect(function()
+	if state == "idle" then
+		setStatus("No active code to cancel.", Color3.fromRGB(255, 200, 50))
+		task.delay(2, function()
+			if state == "idle" then
+				setStatus("Waiting for code...", Color3.fromRGB(60, 180, 255))
+			end
+		end)
+	else
+		resetState()
+		setStatus("Code cancelled!", Color3.fromRGB(255, 60, 60))
+		task.delay(2, function()
+			if state == "idle" then
+				setStatus("Waiting for code...", Color3.fromRGB(60, 180, 255))
+			end
+		end)
+	end
+end)
 
 setWordCount = function(count)
 	wordCount = count
